@@ -4,3 +4,5 @@ __pycache__/
 *.pyc
 classifier/data/
 .claude/
+*.mov
+*.mp4
