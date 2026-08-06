@@ -18,7 +18,7 @@ non-obvious decision was made, 15 technical + 10 behavioral Q&A.
 
 Deployable as: a local Python process (Phase 2) → `docker compose up` (Phase 4) →
 a local Kubernetes cluster with self-healing + autoscaling (Phase 5) → the same
-manifests, unchanged, against a real cloud cluster (Phase 6, documented).
+manifests, unchanged, against a real cloud cluster on GKE (Phase 6, deployed live).
 
 <details>
 <summary>Plain-text version</summary>
@@ -90,7 +90,7 @@ consequence of the routing decision working as intended, not a performance bug.
 - [x] Phase 3 — Logging (MongoDB)
 - [x] Phase 4 — Containerization
 - [x] Phase 5 — Kubernetes (Minikube)
-- [x] Phase 6 — Cloud deployment (documented, not deployed — see below)
+- [x] Phase 6 — Cloud deployment (deployed live to GKE — see below)
 - [x] Phase 7 — Dashboard & writeup
 
 ## Setup
@@ -460,75 +460,116 @@ reachable inside the cluster; horizontal pod autoscaler configured."
 
 ## Phase 6: Cloud Deployment
 
-### Decision: documented, not actually deployed
+### Decision: deploy on-demand, not run continuously
 
-Deliberately scoped out of this build. The reasoning: this project has near-
-zero real traffic, and both AWS EKS and GCP GKE incur *ongoing* costs the
-moment a cluster exists — AWS EKS charges a mandatory ~$0.10/hour control-
-plane fee with no free-tier exemption; GCP GKE gives one free zonal cluster
-but the underlying VM nodes still cost money, and every free-tier cloud
-account still requires a credit card on file. As a student already paying
-for two other API subscriptions, spending real money to keep infrastructure
-running 24/7 for a portfolio project with no real users isn't a good
-tradeoff — and it's a legitimate engineering judgment call, not a shortcut:
-not over-provisioning idle infrastructure is itself a defensible decision
-worth being able to explain.
+Both AWS EKS and GCP GKE incur *ongoing* costs the moment a cluster exists —
+AWS EKS charges a mandatory ~$0.10/hour control-plane fee with no free-tier
+exemption; GCP GKE gives one free zonal cluster but the underlying VM nodes
+still cost money. As a student already paying for two other API
+subscriptions, leaving infrastructure running 24/7 for a portfolio project
+with no real users isn't a good tradeoff. So instead of standing up a
+cluster and leaving it running indefinitely, the plan was always to deploy
+for real, prove it works against live cloud infrastructure, capture
+evidence, then tear it down — not over-provisioning idle infrastructure is
+itself a defensible decision worth being able to explain.
 
-### Why this is a legitimate stopping point, not a shortcut
+### What actually happened
+
+Deployed live to Google Kubernetes Engine (GKE) using GCP's free-trial
+credit: provisioned a real 2-node cluster, pushed the Docker image to
+Artifact Registry, applied the same `k8s/` manifests used for Minikube with
+the two cloud-specific changes described below (`LoadBalancer` Service type,
+registry image path), and got a genuine public IP address serving live
+traffic from a browser and `curl` on a separate machine — not
+`localhost`, not `kubectl port-forward`.
+
+**The demo page, live at the public IP, correctly routing a hard query to
+the strong tier** (Cloud Shell on the left showing the cluster being
+resized after the router pod hit a scheduling issue — see below — the
+browser on the right on a completely separate machine):
+
+![LLM Router demo page live on a public GKE LoadBalancer IP, routing a REST-vs-GraphQL query to the strong tier, next to the GCP Cloud Shell terminal that provisioned the cluster](docs/screenshots/gcp-live-demo.png)
+
+**The cost-savings dashboard, live at the same public IP, showing real
+accumulated stats from that traffic:**
+
+![Cost savings dashboard live on the public GKE LoadBalancer IP, next to the GCP Cloud Shell terminal](docs/screenshots/gcp-live-dashboard.png)
+
+One real hiccup worth documenting: the router pod initially sat in
+`Pending` because a single `e2-small` node (2 vCPU / 2GB RAM) couldn't fit
+both the MongoDB pod and the router pod's resource requests at once —
+`kubectl describe pod` showed `FailedScheduling: Insufficient cpu,
+Insufficient memory`. Fixed by resizing the node pool to 2 nodes
+(`gcloud container clusters resize ... --num-nodes=2`), which is the
+Cloud Shell command visible in the screenshots above. This is a real
+example of Kubernetes' scheduler enforcing resource requests exactly as
+designed, not a bug in the app.
+
+The cluster was torn down (`gcloud container clusters delete`) once this
+evidence was captured, per the cost reasoning above — the screenshots and
+this writeup are what stand in for a permanently-running public endpoint.
+
+### Why the manifests needed almost no changes
 
 **Kubernetes manifests are portable by design** — that's the actual point
 of the abstraction. Every manifest in `k8s/` (`Deployment`, `Service`, `HPA`)
-would `kubectl apply` against a real EKS or GKE cluster completely
-unchanged. Only the *cluster provisioning* and a handful of environment-
-specific details differ, laid out below.
+`kubectl apply`s against a real GKE cluster exactly as it does against
+Minikube. Only the *cluster provisioning* and two environment-specific
+fields in `router.yaml` differed, laid out below.
 
-### What would actually change, moving from Minikube to a real cloud cluster
+### What actually changed, moving from Minikube to GKE
 
-1. **Provision the cluster** (one-time, cloud-side):
+1. **Provisioned the cluster** (one-time, cloud-side):
    ```bash
-   # GCP GKE
-   gcloud container clusters create llm-router --num-nodes=1 --zone=us-central1-a
-
-   # AWS EKS
-   eksctl create cluster --name llm-router --nodes 1
+   gcloud container clusters create llm-router-demo --num-nodes=1 --zone=us-east1-b
    ```
-2. **Push the image to a registry** instead of `minikube image load` — cloud
-   clusters can't see images that only exist on a local machine:
+   (Two earlier attempts in `us-central1-a` and `us-central1-c` hit
+   `GCE_STOCKOUT` — insufficient zonal capacity — and were deleted and
+   retried elsewhere; `us-east1-b` provisioned cleanly.)
+2. **Pushed the image to Artifact Registry** instead of `minikube image
+   load` — cloud clusters can't see images that only exist on a local
+   machine:
    ```bash
-   docker tag llmrouter-router:latest gcr.io/<project-id>/llmrouter-router:latest
-   docker push gcr.io/<project-id>/llmrouter-router:latest
+   docker tag llmrouter-router:latest us-east1-docker.pkg.dev/<project-id>/llm-router-repo/router:latest
+   docker push us-east1-docker.pkg.dev/<project-id>/llm-router-repo/router:latest
    ```
-   and update `k8s/router.yaml`'s `image:` field to match, removing
+   and updated `k8s/router.yaml`'s `image:` field to match, removing
    `imagePullPolicy: Never` (that flag only makes sense for locally-loaded
    images).
-3. **Change the router's Service from `ClusterIP` to `LoadBalancer`** in
-   `k8s/router.yaml` — this is what actually gets you a public IP address.
-   `ClusterIP` (what we used for Minikube) is only reachable from inside the
+3. **Changed the router's Service from `ClusterIP` to `LoadBalancer`** in
+   `k8s/router.yaml` — this is what actually gets a public IP address.
+   `ClusterIP` (used for Minikube) is only reachable from inside the
    cluster or via `kubectl port-forward`; it was the right choice there
-   since the spec's own Phase 5 acceptance criteria only asks for
-   "reachable inside the cluster." Phase 6's criteria ("publicly reachable
-   endpoint") is exactly the `LoadBalancer` type's job.
-4. **`kubectl apply -f k8s/`** — every manifest applies exactly as written;
-   nothing about the Deployment, ConfigMap, Secret, or HPA needs to change.
+   since Phase 5's acceptance criteria only asks for "reachable inside the
+   cluster." Phase 6's criteria ("publicly reachable endpoint") is exactly
+   the `LoadBalancer` type's job.
+4. **`kubectl apply -f k8s/`** — every other manifest applied exactly as
+   written; nothing about the Deployment, ConfigMap, Secret, or HPA needed
+   to change.
 
-### How this project would actually be demoed
+*(Note: the GitHub copy of `k8s/router.yaml` reflects the Minikube
+configuration from Phase 5 — `ClusterIP`, local image, `imagePullPolicy:
+Never` — since that's what the acceptance criteria for this repo's
+reference environment calls for. The GCP-specific values above were applied
+directly during the live deployment and aren't checked in as a second
+manifest, to avoid maintaining two near-duplicate files for a cluster that
+no longer exists.)*
 
-Since there's no live public URL, "showing" this project relies on:
+### How this project gets demoed day-to-day
+
+With no cluster running permanently, "showing" this project relies on:
 
 - **A live local demo** — `docker compose up` or the Minikube cluster,
-  hitting the endpoint, showing the MongoDB log and (once built) the
-  dashboard. Functionally identical to a cloud deployment, since that's the
-  entire premise of containerization — this is a legitimate demonstration,
-  not a lesser one.
-- **A recorded walkthrough** (planned for Phase 7, once the dashboard
-  exists) — a short video/GIF of the full request → routing → logging →
-  dashboard flow, embedded in this README, so it's visible without anyone
-  needing to run anything themselves.
-- **An on-demand one-time cloud deployment**, only if a specific situation
-  calls for a real live public URL (e.g. before a particular interview) —
-  spin up GKE using free trial credit, record it working live, tear it down
-  immediately after. Follows the exact steps above; costs nothing if done
-  in one short sitting.
+  hitting the endpoint, showing the MongoDB log and dashboard. Functionally
+  identical to a cloud deployment, since that's the entire premise of
+  containerization — this is a legitimate demonstration, not a lesser one.
+  See [`DEMO.md`](DEMO.md) for the exact steps.
+- **The screenshots above**, as evidence the same manifests were proven
+  against real cloud infrastructure, not just local.
+- **Re-running the cloud deployment on demand**, if a specific situation
+  calls for a fresh live public URL (e.g. before a particular interview) —
+  follows the exact steps above; costs nothing if done in one short
+  sitting using free trial credit.
 
 ## Phase 7: Dashboard & Writeup
 
