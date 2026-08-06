@@ -4,6 +4,10 @@ A gateway that classifies each incoming query for difficulty and routes it to th
 cheapest LLM tier capable of answering it correctly, instead of sending every
 request to the most expensive model.
 
+📄 [**Interview Prep PDF**](docs/Interview-Prep.pdf) — architecture deep-dive, why every
+non-obvious decision was made, 15 technical + 10 behavioral Q&A.
+📋 [**Demo checklist**](DEMO.md) — bringing the stack up from a cold machine.
+
 ## Architecture
 
 <picture>
