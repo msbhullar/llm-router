@@ -12,6 +12,7 @@ from router_service.config import (
     STRONG_OUTPUT_COST_PER_TOKEN,
 )
 from router_service.dashboard import compute_stats, render_dashboard
+from router_service.demo import render_demo
 from router_service.difficulty import score_difficulty
 from router_service.llm_client import call_model
 from router_service.logging_store import log_decision
@@ -30,6 +31,11 @@ class RouteResponse(BaseModel):
     difficulty_score: float
     estimated_cost: float
     latency_ms: int
+
+
+@app.get("/", response_class=HTMLResponse)
+def demo():
+    return render_demo()
 
 
 @app.get("/health")

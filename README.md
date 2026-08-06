@@ -208,6 +208,12 @@ curl -X POST http://127.0.0.1:8000/route \
   -d '{"query": "What is the capital of Japan?"}'
 ```
 
+`GET /` also serves a small interactive demo page — type a query, click
+"Route this query," and see the answer plus which tier handled it rendered
+visually. Not part of the original spec's API surface (section 4.2 only
+calls for `POST /route` as a JSON endpoint); added afterward specifically
+to make the routing decision demoable without a terminal.
+
 ### Files
 
 | File | Purpose |
