@@ -6,6 +6,10 @@ request to the most expensive model.
 
 📄 [**Interview Prep PDF**](docs/Interview-Prep.pdf) — architecture deep-dive, why every
 non-obvious decision was made, 15 technical + 10 behavioral Q&A.
+☁️ [**Cloud Deployment Deep Dive PDF**](docs/Cloud-Deployment-Interview-Prep.pdf) — what
+cloud/Kubernetes tech was used and why, the real GKE deployment journey (including the
+zone stockouts and pod-scheduling fix), every manifest's role, and 15 cloud-specific
+technical Q&A.
 📋 [**Demo checklist**](DEMO.md) — bringing the stack up from a cold machine.
 
 ## Architecture
