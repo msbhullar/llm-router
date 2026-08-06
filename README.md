@@ -6,6 +6,19 @@ request to the most expensive model.
 
 ## Architecture
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/architecture.png">
+  <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/architecture-light.png">
+  <img alt="Architecture diagram: Client to Router Service to Cheap/Strong LLM tiers, logged to MongoDB, read by the dashboard" src="docs/screenshots/architecture.png">
+</picture>
+
+Deployable as: a local Python process (Phase 2) → `docker compose up` (Phase 4) →
+a local Kubernetes cluster with self-healing + autoscaling (Phase 5) → the same
+manifests, unchanged, against a real cloud cluster (Phase 6, documented).
+
+<details>
+<summary>Plain-text version</summary>
+
 ```
 ┌─────────────┐      ┌──────────────────────────────────────┐      ┌──────────────────┐
 │   Client    │─────▶│            Router Service             │─────▶│  Cheap LLM tier   │
@@ -30,9 +43,7 @@ request to the most expensive model.
                                 └─────────────────────┘
 ```
 
-Deployable as: a local Python process (Phase 2) → `docker compose up` (Phase 4) →
-a local Kubernetes cluster with self-healing + autoscaling (Phase 5) → the same
-manifests, unchanged, against a real cloud cluster (Phase 6, documented).
+</details>
 
 ### The routing decision, live
 
