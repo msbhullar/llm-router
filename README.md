@@ -495,6 +495,16 @@ accumulated stats from that traffic:**
 
 ![Cost savings dashboard live on the public GKE LoadBalancer IP, next to the GCP Cloud Shell terminal](docs/screenshots/gcp-live-dashboard.png)
 
+**The same deployment from Google's own console** — the cluster listed as
+healthy in GKE, and the `router` Service showing `External load balancer`
+with the exact public endpoint (`34.73.192.177:8000`) used above, tying the
+public IP directly to the cluster without relying on the terminal:
+
+<p>
+  <img src="docs/screenshots/gcp-console-clusters.png" alt="GCP Console showing the llm-router-demo cluster, healthy, in us-east1-b" width="49%">
+  <img src="docs/screenshots/gcp-console-services.png" alt="GCP Console Gateways, Services & Ingress page showing the router Service as an External load balancer with its public endpoint" width="49%">
+</p>
+
 One real hiccup worth documenting: the router pod initially sat in
 `Pending` because a single `e2-small` node (2 vCPU / 2GB RAM) couldn't fit
 both the MongoDB pod and the router pod's resource requests at once —
