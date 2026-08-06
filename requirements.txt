@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+python-dotenv
+openai
+pymongo
+joblib
+pandas
+scikit-learn
+spacy
+wordfreq
+datasets

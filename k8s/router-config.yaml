@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: router-config
+data:
+  CHEAP_MODEL: "gpt-5.6-luna"
+  STRONG_MODEL: "gpt-5.6-sol"
+  DIFFICULTY_THRESHOLD: "0.3"
+  MAX_TOKENS: "1024"
+  MONGODB_URI: "mongodb://mongo:27017"
