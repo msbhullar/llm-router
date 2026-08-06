@@ -34,6 +34,13 @@ Deployable as: a local Python process (Phase 2) → `docker compose up` (Phase 4
 a local Kubernetes cluster with self-healing + autoscaling (Phase 5) → the same
 manifests, unchanged, against a real cloud cluster (Phase 6, documented).
 
+### The routing decision, live
+
+Two real requests through `POST /route` — an easy query routed to the cheap
+tier, a multi-step reasoning query routed to the strong tier:
+
+![Two API requests showing cheap-tier and strong-tier routing decisions](docs/screenshots/api-example.png)
+
 ## Results
 
 From a live test batch of 9 requests (small, manual, illustrative — not a
@@ -54,6 +61,12 @@ where this pattern actually pays for itself. The strong tier's much higher p95
 latency is also expected and worth noting: harder queries get longer, more
 deliberate responses from a larger model — the latency difference is a
 consequence of the routing decision working as intended, not a performance bug.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/dashboard.png">
+  <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/dashboard-light.png">
+  <img alt="Cost savings dashboard screenshot" src="docs/screenshots/dashboard.png">
+</picture>
 
 ## Status
 
@@ -421,6 +434,8 @@ verified in every previous phase, now running entirely inside Kubernetes.
 `kubectl get hpa` shows the autoscaler actively reporting real CPU metrics
 (`cpu: 9%/50%`). Meets the spec's Phase 5 acceptance criteria: "Service
 reachable inside the cluster; horizontal pod autoscaler configured."
+
+![kubectl output showing both pods Running, the mongo/router Services, and the HPA reporting live CPU metrics](docs/screenshots/kubernetes-running.png)
 
 ## Phase 6: Cloud Deployment
 
