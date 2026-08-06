@@ -124,7 +124,7 @@ python3 -m classifier.sanity_check   # runs the model on hand-written queries as
 | `train.py` | Builds the feature matrix, trains the model, evaluates on a held-out test set, saves `model.joblib` |
 | `sanity_check.py` | Standing regression check on hand-written, out-of-distribution queries — run after every retrain |
 
-### Features (6, all fast/deterministic, no LLM calls)
+### Features (7, all fast/deterministic, no LLM calls)
 
 `word_count`, `reasoning_keyword_count` (compare/explain why/step by step/etc.),
 `question_mark_count`, `conjunction_count`, `entity_count` (spaCy NER),
